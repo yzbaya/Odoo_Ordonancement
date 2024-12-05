@@ -1,0 +1,26 @@
+<!-- my_fabrication_views.xml -->
+<odoo>
+    <!-- Héritage de la vue existante pour ajouter le champ sale_order_id -->
+    <record id="view_mrp_production_form_inherited" model="ir.ui.view">
+        <field name="name">mrp.production.form.inherited</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <group>
+                    <field name="sale_order_id"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+    <record id="view_mrp_production_tree_inherited" model="ir.ui.view">
+        <field name="name">mrp.production.tree.inherited</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="sale_order_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,46 @@
+<odoo>
+    <data>
+        <!-- Menu principal -->
+        <menuitem id="menu_sales_root" name="MesVentes" sequence="10" />
+
+        <!-- Action pour afficher les commandes -->
+        <record id="action_my_sale_orders" model="ir.actions.act_window">
+            <field name="res_model">sale.order</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="view_sale_order_tree_inherit_my_sale"/>
+        </record>
+
+        <record id="view_sale_order_tree_inherit_my_sale" model="ir.ui.view">
+            <field name="name">sale.order.tree.inherit.my_sale</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='amount_total']" position="after">
+                    <field name="status_commande"/>
+                </xpath>
+                <xpath expr="//field[@name='name']" position="after">
+                    <field name="recommandation"/>
+                </xpath>
+<!--                <xpath expr="//field[@name='date_order']" position="after">-->
+<!--                    <field name="product_bom"/>-->
+<!--                </xpath>-->
+                <xpath expr="//field[@name='date_order']" position="after">
+                    <field name="product_bom"/>
+                    <field name="quantity"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_sale_order_form_inherit_my_sale" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit.my_sale</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='partner_id']" position="after">
+                    <field name="product_bom"/>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>

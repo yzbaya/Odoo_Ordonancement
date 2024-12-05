@@ -1,0 +1,17 @@
+<odoo>
+    <!-- Menu principal pour le module Fabrication -->
+    <menuitem id="menu_fabrication_root" name="MonFabrication" sequence="10" />
+
+    <!-- Sous-menu pour les Ordres de Fabrication -->
+    <menuitem id="menu_fabrication_orders" name="MonFabrication" parent="menu_fabrication_root" sequence="10" />
+
+    <!-- Action liée au menu des Ordres de Fabrication -->
+    <record id="action_fabrication_orders" model="ir.actions.act_window">
+        <field name="name">Ordres de Fabrication</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Lien entre le menu et l'action -->
+    <menuitem id="menu_fabrication_orders_action" name="Ordres de Fabrication" parent="menu_fabrication_orders" action="action_fabrication_orders" sequence="1"/>
+</odoo>

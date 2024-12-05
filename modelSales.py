@@ -4,9 +4,17 @@ from itertools import combinations
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
-    status_commande = fields.Char(string='Status de Commande', compute='_compute_status_commande')
+
+
     product_bom = fields.Many2one('mrp.bom', string='Product BOM')
-    recommandation = fields.Char(string='Recommandation')
+    recommandation = fields.Char(string='Recommandation', compute='_compute_recommandation')
+    status_commande = fields.Char(string='Status de Commande', compute='_compute_status_commande')
+    quantity = fields.Float(string='Total Quantity',compute='_compute_total_quantity')
+
+    @api.depends('order_line.product_uom_qty')
+    def _compute_total_quantity(self):
+        for order in self:
+            order.quantity = sum(line.product_uom_qty for line in order.order_line)
 
     @api.depends('order_line')
     def _compute_status_commande(self):
@@ -18,28 +26,19 @@ class SaleOrder(models.Model):
                 order.status_commande = 'Unknown1'
 
     def fetch_odoo_data(self):
-        self.env['ir.logging'].create({
-            'name': 'fetch_odoo_data',
-            'type': 'server',
-            'level': 'debug',
-            'message': "Fetching Odoo data...",
-            'path': 'sale_order',
-            'line': '0',
-            'func': 'fetch_odoo_data',
-        })
 
         sale_records = self.env['sale.order'].search([('status_commande', '=', 'Unknown1')])
 
         if not sale_records:
-            self.env['ir.logging'].create({ 
-                'name': 'fetch_odoo_data',
-                'type': 'server',
-                'level': 'debug',
-                'message': "No sale records found.",
-                'path': 'sale_order',
-                'line': '0',
-                'func': 'fetch_odoo_data',
-            })
+            # self.env['ir.logging'].create({
+            #     'name': 'fetch_odoo_data',
+            #     'type': 'server',
+            #     'level': 'debug',
+            #     'message': "No sale records found.",
+            #     'path': 'sale_order',
+            #     'line': '0',
+            #     'func': 'fetch_odoo_data',
+            # })
             return None, None
 
         all_data = []
@@ -52,8 +51,6 @@ class SaleOrder(models.Model):
         ]
 
         product_stock = {product.name: product.qty_available for product in products_without_manufacture}
-
-
 
         for sale in sale_records:
             if sale.status_commande != 'Unknown1':
@@ -70,9 +67,9 @@ class SaleOrder(models.Model):
                             component_name = bom_line.product_id.name if bom_line.product_id else ''
                             component_qty = bom_line.product_qty
                             bom_components[component_name] = component_qty * line.product_uom_qty
+
                 date_order = sale.date_order.date()  # Convert datetime to date
                 expiration_date = sale.validity_date
-
                 delivery_time = (expiration_date - date_order).days
 
                 all_data.append({
@@ -86,15 +83,15 @@ class SaleOrder(models.Model):
                     'status_commande': sale.status_commande
                 })
 
-        self.env['ir.logging'].create({
-            'name': 'fetch_odoo_data',
-            'type': 'server',
-            'level': 'debug',
-            'message': f"All data extracted: {all_data}",
-            'path': 'sale_order',
-            'line': '0',
-            'func': 'fetch_odoo_data',
-        })
+        # self.env['ir.logging'].create({
+        #     'name': 'fetch_odoo_data',
+        #     'type': 'server',
+        #     'level': 'debug',
+        #     'message': f"All data extracted: {all_data}",
+        #     'path': 'sale_order',
+        #     'line': '0',
+        #     'func': 'fetch_odoo_data',
+        # })
 
         return all_data, product_stock
 
@@ -109,8 +106,32 @@ class SaleOrder(models.Model):
                             material_needed[material] += quantity * order['product_uom_quantity']
                         else:
                             material_needed[material] = quantity * order['product_uom_quantity']
+
+                # Log material needed and stock details
+                # self.env['ir.logging'].create({
+                #     'name': 'generate_combinations',
+                #     'type': 'server',
+                #     'level': 'debug',
+                #     'message': f"Combination: {[order['order_name'] for order in combo]}, Material Needed: {material_needed}, Stock: {stock}",
+                #     'path': 'sale_order',
+                #     'line': '0',
+                #     'func': 'generate_combinations',
+                # })
+
                 if all(stock.get(material, 0) >= needed_mat for material, needed_mat in material_needed.items()):
                     valid_combinations.append(combo)
+
+        # Log valid combinations found
+        # self.env['ir.logging'].create({
+        #     'name': 'generate_combinations',
+        #     'type': 'server',
+        #     'level': 'debug',
+        #     'message': f"Valid Combinations: {[[order['order_name'] for order in combo] for combo in valid_combinations]}",
+        #     'path': 'sale_order',
+        #     'line': '0',
+        #     'func': 'generate_combinations',
+        # })
+
         return valid_combinations
 
     def extract_largest(self, valid_combinations):
@@ -127,9 +148,21 @@ class SaleOrder(models.Model):
                 if current_max_delivery_time < largest_max_delivery_time:
                     largest_combo = combo
 
+        # self.env['ir.logging'].create({
+        #     'name': 'extract_largest',
+        #     'type': 'server',
+        #     'level': 'debug',
+        #     'message': f"Largest Combo: {largest_combo}",
+        #     'path': 'sale_order',
+        #     'line': '0',
+        #     'func': 'extract_largest',
+        # })
+
         return largest_combo
 
     def sorted_orders(self, largest_combo):
+        if not largest_combo:
+            return []
         n = len(largest_combo)
         for i in range(n):
             for j in range(0, n - i - 1):
@@ -154,13 +187,27 @@ class SaleOrder(models.Model):
 
         if data and stock:
             orders = data
-
             valid_combinations = self.generate_combinations(orders, stock)
-            largest_combo = self.extract_largest(valid_combinations)
-            sorted_largest_combo = self.sorted_orders(list(largest_combo))
 
-            # for order in self:
-            #     for i in sorted_largest_combo:
-            #         if i['order_name'] == order.name:
-            #             recommendation = ', '.join([i['order_name'])
-            #             order.recommandation = recommendation
+            largest_combo = self.extract_largest(valid_combinations)
+            if largest_combo:
+                sorted_largest_combo = self.sorted_orders(list(largest_combo))
+                recommendations = {}
+                for i in range(len(sorted_largest_combo)):
+                    recommendations[sorted_largest_combo[i]['order_name']] = i + 1
+
+                other_orders = self.other_orders(orders, largest_combo)
+                for i in range(len(other_orders)):
+                    recommendations[other_orders[i]['order_name']] = f"Insufficient Stock: {i + 1}"
+
+                for order in self:
+                    order.recommandation = recommendations.get(order.name, "")
+            else:
+                for order in self:
+                    order.recommandation = "No valid combination"
+        else:
+            for order in self:
+                order.recommandation = "No data or stock"
+
+        for order in self:
+            print(f"Final Order {order.name} recommendation: {order.recommandation}")
